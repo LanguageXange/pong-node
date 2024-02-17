@@ -1,3 +1,16 @@
+// Testing File
+
+// Button
+let gameMode = null;
+let btn1 = document.getElementById("single");
+let btn2 = document.getElementById("multi");
+btn1.addEventListener("click", () => {
+  gameMode = 1;
+});
+btn2.addEventListener("click", () => {
+  gameMode = 2;
+});
+
 // Canvas Related
 const canvas = document.createElement("canvas");
 const context = canvas.getContext("2d");
@@ -23,6 +36,8 @@ let playerMoved = false;
 // Keyboard
 let left = false;
 let right = false;
+let topLeft = false;
+let topRight = false;
 
 // Ball
 let ballX = 250;
@@ -55,7 +70,7 @@ function renderIntro() {
   // Intro Text
   context.fillStyle = "white";
   context.font = "30px Courier New";
-  context.fillText("Waiting for opponent...", 20, canvas.height / 2 - 30);
+  context.fillText("Wating for your opponent", 20, canvas.height / 2 - 30);
 }
 
 // Render Everything on Canvas
@@ -100,11 +115,11 @@ function ballReset() {
   speedY = 3;
   speedX = 0;
 
-  socket.emit("ballMove", {
-    ballX,
-    ballY,
-    score,
-  });
+  // socket.emit("ballMove", {
+  //   ballX,
+  //   ballY,
+  //   score,
+  // });
 }
 
 // Adjust Ball Movement
@@ -116,11 +131,11 @@ function ballMove() {
     ballX += speedX;
   }
 
-  socket.emit("ballMove", {
-    ballX,
-    ballY,
-    score,
-  });
+  // socket.emit("ballMove", {
+  //   ballX,
+  //   ballY,
+  //   score,
+  // });
 }
 
 // Determine What Ball Bounces Off, Score Points, Reset Ball
@@ -179,6 +194,7 @@ function animate() {
   if (isReferee) {
     ballMove();
     ballBoundaries();
+    paddleMove();
   }
 
   renderCanvas();
@@ -188,33 +204,104 @@ function animate() {
 }
 
 // Refactor code to separate Load and Start Game
-function loadGame() {
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+async function loadGame() {
+  while (gameMode === null) {
+    await delay(500);
+  }
   createCanvas();
   renderIntro();
-  socket.emit("ready", { mode: 2 });
+  socket.emit("ready", { mode: gameMode });
 }
+
+function handleKeyDown(e) {
+  // playerMoved = true;
+  switch (e.key) {
+    case "ArrowLeft":
+      left = true;
+      break;
+    case "ArrowRight":
+      right = true;
+      break;
+    case "a":
+      topLeft = true;
+      break;
+    case "d":
+      topRight = true;
+      break;
+  }
+}
+
+// single player mode
+function paddleMove() {
+  // this will make it toggle all the time making it hard to hit
+  // if (topLeft || topRight || left || right) {
+  //   playerMoved = true;
+  // } else {
+  //   playerMoved = false;
+  // }
+  if (topLeft) {
+    paddleX[1] < 0 ? 0 : (paddleX[1] -= 10);
+  }
+  if (topRight) {
+    paddleX[1] += 10;
+  }
+  if (left) {
+    paddleX[0] -= 10;
+  }
+  if (right) {
+    paddleX[0] += 10;
+  }
+
+  // to sync data
+  // socket.emit("paddleMove", {
+  //   xPos: paddleX,
+  // });
+}
+function handleKeyUp(e) {
+  switch (e.key) {
+    case "ArrowLeft":
+      left = false;
+      break;
+    case "ArrowRight":
+      right = false;
+      break;
+    case "a":
+      topLeft = false;
+      break;
+    case "d":
+      topRight = false;
+      break;
+  }
+}
+
+function chooseGameMode() {}
 
 // begin the game loop
 function startGame() {
   paddleIndex = isReferee ? 0 : 1; // determines who controls the bottom paddle depending on who's the referee
   animate();
-  canvas.addEventListener("mousemove", (e) => {
-    playerMoved = true;
-    paddleX[paddleIndex] = e.offsetX;
-    if (paddleX[paddleIndex] < 0) {
-      paddleX[paddleIndex] = 0;
-    }
-    if (paddleX[paddleIndex] > width - paddleWidth) {
-      paddleX[paddleIndex] = width - paddleWidth;
-    }
+  document.addEventListener("keydown", (e) => handleKeyDown(e));
+  document.addEventListener("keyup", (e) => handleKeyUp(e));
+  // canvas.addEventListener("mousemove", (e) => {
+  //   playerMoved = true;
+  //   paddleX[paddleIndex] = e.offsetX;
+  //   if (paddleX[paddleIndex] < 0) {
+  //     paddleX[paddleIndex] = 0;
+  //   }
+  //   if (paddleX[paddleIndex] > width - paddleWidth) {
+  //     paddleX[paddleIndex] = width - paddleWidth;
+  //   }
 
-    // emit paddle move event with paddle Data
-    socket.emit("paddleMove", {
-      xPos: paddleX[paddleIndex],
-    });
-    // Hide Cursor
-    canvas.style.cursor = "none";
-  });
+  //   // emit paddle move event with paddle Data
+  //   socket.emit("paddleMove", {
+  //     xPos: paddleX[paddleIndex],
+  //   });
+  //   // Hide Cursor
+  //   canvas.style.cursor = "none";
+  // });
 }
 
 // On Load
@@ -238,6 +325,8 @@ socket.on("paddleMove", (paddleData) => {
   // toggle between paddleIndex ( either zero or one )
   const opponentPaddleId = 1 - paddleIndex;
   paddleX[opponentPaddleId] = paddleData.xPos;
+  // for showing sync data for two keyboards
+  // paddleX = paddleData.xPos;
 });
 
 // listen to 'ballMove' event
