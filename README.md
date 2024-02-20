@@ -48,3 +48,7 @@ const __dirname = path.dirname(__filename);
 ## To play
 
 `pnpm start`
+
+## Helmet JS
+
+`pnpm add helmet`
